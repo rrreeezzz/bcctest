@@ -3,12 +3,9 @@ package main
 import "fmt"
 
 func main() {
-    fmt.Println("Hello world !")
-
-    fmt.Println(concatStr("a", "b"))
+	fmt.Println(concatStr("Hello", " world!"))
 }
 
-func concatStr(s1, s2 string) string {
-    return fmt.Sprintf("%s%s", s1, s2)
+func concatStr(a, b string) string {
+	return fmt.Sprintf("%s%s", a, b)
 }
-
