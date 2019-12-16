@@ -4,7 +4,25 @@
 
 from bcc import BPF
 from time import sleep
-import os
+import os, argparse, subprocess
+
+help="""help:
+    ./latency.py -n binary -f function
+"""
+
+parser = argparse.ArgumentParser(
+    description="Measure latency go binary (GC)",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog=help)
+parser.add_argument("-n", "--name",
+    type=str,
+    help="binary name",
+    required=True)
+parser.add_argument("-f", "--func",
+    type=str,
+    help="function to measure",
+    required=True)
+args = parser.parse_args()
 
 bpf_text = """
 #include <uapi/linux/ptrace.h>
@@ -35,10 +53,19 @@ int end_f(struct pt_regs *ctx) {
 }
 """
 
-path = os.getcwd() + "/hello"
+path = os.getcwd() + "/" + args.name
+rets = []
+out = subprocess.check_output("/usr/bin/objdump --disassemble=" + args.func \
+        + " " + path \
+        + " | /usr/bin/awk '/\<c3|c2\>/{print substr($1, 1, length($1)-1)}'", \
+        stderr=subprocess.STDOUT, \
+        shell=True).decode("utf-8").split("\n")
+
+rets += out[:-1]
 b = BPF(text=bpf_text)
-b.attach_uprobe(name=path, sym="main.concatStr", fn_name="start_f")
-b.attach_uretprobe(name=path, sym="main.concatStr", fn_name="end_f")
+b.attach_uprobe(name=path, sym=args.func, fn_name="start_f")
+for elt in rets:
+    b.attach_uprobe(name=path, addr=int(elt, 16), fn_name="end_f")
 
 dist = b.get_table("dist")
 while 1:
